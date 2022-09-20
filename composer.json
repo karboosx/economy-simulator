@@ -1,0 +1,20 @@
+{
+    "name": "karbo/economy",
+    "autoload": {
+        "psr-4": {
+            "Karbo\\Economy\\": "src/",
+            "Tests\\": "tests/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Michał Karbowiak",
+            "email": "karbowiak@karboosx.net"
+        }
+    ],
+    "require": {
+        "phpunit/phpunit": "^9.5",
+        "ext-gd": "*",
+      "ext-json": "*"
+    }
+}
