@@ -180,6 +180,7 @@ class Simulation
         }
 
         $this->collectBuildingInventoryStats();
+        $this->collectBuildingMoneyStats();
 
         foreach ($this->buildings as $building) {
             $building->work();
@@ -200,14 +201,14 @@ class Simulation
                 $building->addInventory('food', 10);
                 $building->setPrice('food', 2);
                 $building->setPrice('work_force', 2);
-                $building->setMoney(1000);
+                $building->setMoney(100);
                 break;
             case 'house':
                 $building = new House($this->priceCalculator, $this);
                 $building->addInventory('food', 4);
                 $building->setPrice('food', 2);
                 $building->setPrice('work_force', 5);
-                $building->setMoney(1000);
+                $building->setMoney(20);
                 break;
             default:
                 throw new \Exception('Unknown building type');
@@ -238,6 +239,7 @@ class Simulation
             'demand' => $this->stat['demand'],
             'inventory' => $this->inventoryStat,
             'fulfilled_demand' => $this->stat['fulfilled_demand'],
+            'money' => $this->stat['money'],
         ];
     }
 
@@ -276,6 +278,19 @@ class Simulation
             foreach ($building->getInventory() as $goods => $amount) {
                 $this->inventoryStat[$goods] += $amount;
             }
+        }
+    }
+
+    private function collectBuildingMoneyStats()
+    {
+        $this->stat['money'] = [];
+
+        foreach ($this->buildings as $building) {
+            if (!isset($this->stat['money'][get_class($building)])) {
+                $this->stat['money'][get_class($building)] = 0;
+            }
+
+            $this->stat['money'][get_class($building)] += $building->getMoney();
         }
     }
 

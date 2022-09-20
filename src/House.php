@@ -8,8 +8,9 @@ class House extends Building
 
     public function placeOrders(): Needs
     {
-        $this->setMinPrice('work_force', $this->simulation->getBestSupplyPrice('food'));
-        $this->setMaxPrice('food', $this->simulation->getBestDemandPrice('work_force'));
+//        $this->setMinPrice('work_force', $this->simulation->getBestSupplyPrice('food'));
+//        $this->setMinPrice('work_force', $this->simulation->getBestDemandPrice('work_force'));
+        //$this->setMaxPrice('food', $this->simulation->getBestDemandPrice('work_force'));
 
         $this->setTargetStorage('food', $this->population * 2);
 
@@ -31,6 +32,8 @@ class House extends Building
         $this->removeInventory('food', $this->population);
     }
 
+    private int $starvation = 0;
+
     public function validate(): void
     {
         if ($this->currentNeeds == null)
@@ -40,6 +43,11 @@ class House extends Building
         $workSupply = $this->currentNeeds->getSupply('work_force');
 
         if ($foodDemand !== null) {
+            if ($foodDemand->noOneFulfilledIt()) {
+                $this->starvation++;
+            }else {
+                $this->starvation = 0;
+            }
             if (!$foodDemand->wasFulfilled()) {
                 if ($this->simulation->getSupply('food') > 0) {
                     $this->increasePrice('food');
@@ -58,6 +66,17 @@ class House extends Building
                 }
             }
         }
+
+        if ($this->simulation->getBestDemandPrice('work_force') > $this->getPrice('work_force')) {
+            $this->increasePrice('work_force');
+        }
+
+
+        if ($this->starvation > 5) {
+            $this->increasePrice('food');
+            $this->decreasePrice('work_force');
+        }
+
 
 //        $potentialEarnings = $this->simulation->getBestSupplyPrice('work_force') * min($this->population, $this->simulation->getSupply('work_force'));
 //        $potentialCost = $this->simulation->getBestDemandPrice('food') * min($this->population, $this->simulation->getDemand('food'));
@@ -78,7 +97,7 @@ class House extends Building
 //
         $maxFoodPrice = $this->getMoney() / $this->population;
 
-        if ($this->getPrice('food') > $maxFoodPrice) {
+        if ($this->getPrice('food') > $maxFoodPrice && $maxFoodPrice > 0) { // todo sprawdzic czemu sie wykrzacza jak $maxFoodPrice = 0
             $this->setPrice('food', $maxFoodPrice);
         }
 

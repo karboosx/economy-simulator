@@ -6,15 +6,12 @@ use Karbo\Economy\Simulation;
 $sim = new Simulation();
 $sim->build('house');
 $sim->build('house');
-$sim->build('house');
-$sim->build('house');
-$sim->build('farm');
 $sim->build('farm');
 
 
 $data = [];
 
-for ($i = 0; $i < 50; $i++) {
+for ($i = 0; $i < 300; $i++) {
     $_GET['i'] = $i;
 
     $sim->tick();
@@ -75,6 +72,10 @@ for ($i = 0; $i < 50; $i++) {
                     <h2>Fulfillment</h2>
                     <!-- chart of food and work_force fulfilled demand -->
                     <canvas id="fulfilled_demand"></canvas>
+                </div>
+                <div class="column">
+                    <h2>Buildings type money</h2>
+                    <canvas id="buildings_type_money"></canvas>
                 </div>
             </div>
             <div class="row">
@@ -295,6 +296,46 @@ for ($i = 0; $i < 50; $i++) {
                             {
                                 label: 'Work force fulfilled demand',
                                 data: <?php echo json_encode(array_map(function ($row) { return $row['fulfilled_demand']['work_force']; }, $data)); ?>,
+                                backgroundColor: [
+                                    'rgba(54, 162, 235, 0.2)',
+                                ],
+                                borderColor: [
+                                    'rgba(54, 162, 235, 1)',
+                                ],
+                                borderWidth: 1
+                            },
+                        ]
+                    },
+                    options: {
+                        scales: {
+                            yAxes: [{
+                                ticks: {
+                                    beginAtZero: true
+                                }
+                            }]
+                        }
+                    }
+                });
+
+                new Chart(document.getElementById('buildings_type_money'), {
+                    type: 'line',
+                    data: {
+                        labels: <?php echo json_encode(array_map(function ($i) { return $i + 1; }, array_keys($data))); ?>,
+                        datasets: [
+                            {
+                                label: 'Karbo\Economy\House',
+                                data: <?php echo json_encode(array_map(function ($row) { return $row['money']['Karbo\Economy\House'] ?? 0; }, $data)); ?>,
+                                backgroundColor: [
+                                    'rgba(255, 99, 132, 0.2)',
+                                ],
+                                borderColor: [
+                                    'rgba(255,99,132,1)',
+                                ],
+                                borderWidth: 1
+                            },
+                            {
+                                label: 'Karbo\Economy\Farm',
+                                data: <?php echo json_encode(array_map(function ($row) { return $row['money']['Karbo\Economy\Farm'] ?? 0; }, $data)); ?>,
                                 backgroundColor: [
                                     'rgba(54, 162, 235, 0.2)',
                                 ],
