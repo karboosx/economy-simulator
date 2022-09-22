@@ -17,6 +17,7 @@ class Simulation
         'food' => 2,
         'work_force' => 5,
     ];
+    private $turn = 0;
 
     public function __construct()
     {
@@ -26,7 +27,7 @@ class Simulation
     /**
      * Find best building that offer a good in the lowest price
      */
-    public function findCheapestSupplier($demand): ?Supplier
+    public function findCheapestSupplier(Order $demand): ?Supplier
     {
         $bestPrice = null;
         $bestBuilding = null;
@@ -37,7 +38,7 @@ class Simulation
 
             $price = $building->getPrice($demand->getGoods());
 
-            if ($price > $demand->getPrice()) {
+            if (!$this->priceIsAcceptable($demand->getPrice(), $price) ) {
                 continue;
             }
 
@@ -52,6 +53,16 @@ class Simulation
         }
 
         return new Supplier($bestBuilding, $bestBuilding->getSupply($demand->getGoods()));
+    }
+
+    private function priceIsAcceptable(float $price, float $offeringPrice)
+    {
+
+        if ($offeringPrice < $price) {
+            return true;
+        }
+
+        return abs($price - $offeringPrice) < 0.01;
     }
 
     /**
@@ -184,9 +195,15 @@ class Simulation
 
         foreach ($this->buildings as $building) {
             $building->work();
+            if ($building->getMoney() <1) {
+                if ($building->terminate()){
+                    $this->removeBuilding($building);
+                }
+            }
         }
 
         $this->collectFulfilledNeedsStats();
+        $this->collectBuildingCountStats();
 
         foreach ($this->buildings as $building) {
             $building->validate();
@@ -198,17 +215,17 @@ class Simulation
         switch ($type) {
             case 'farm':
                 $building = new Farm($this->priceCalculator, $this);
-                $building->addInventory('food', 10);
-                $building->setPrice('food', 2);
-                $building->setPrice('work_force', 2);
-                $building->setMoney(100);
+                $building->addInventory('food', 4);
+                $building->setPrice('food', 0.5);
+                $building->setPrice('work_force', 4);
+                $building->setMoney(100+10*$this->getBuildingCount('farm'));
                 break;
             case 'house':
                 $building = new House($this->priceCalculator, $this);
-                $building->addInventory('food', 4);
+                $building->addInventory('work_force', 2);
                 $building->setPrice('food', 2);
-                $building->setPrice('work_force', 5);
-                $building->setMoney(20);
+                $building->setPrice('work_force', 4);
+                $building->setMoney(100+100*$this->getBuildingCount('house'));
                 break;
             default:
                 throw new \Exception('Unknown building type');
@@ -240,9 +257,18 @@ class Simulation
             'inventory' => $this->inventoryStat,
             'fulfilled_demand' => $this->stat['fulfilled_demand'],
             'money' => $this->stat['money'],
+            'buildings_count' => $this->stat['buildings_count'],
         ];
     }
 
+
+    private function collectBuildingCountStats(): void
+    {
+        $this->stat['buildings_count'] = [
+            'farm' => $this->getBuildingCount(Farm::class),
+            'house' => $this->getBuildingCount(House::class),
+        ];
+    }
     private function collectSupplyAndDemandStats()
     {
         $this->stat = [
@@ -321,4 +347,33 @@ class Simulation
             }
         }
     }
+
+    public function removeBuilding(Building $building)
+    {
+        echo '['.get_class($building) . ' removed at turn '.str_pad($this->turn, 4, '_', STR_PAD_LEFT).']'.PHP_EOL;
+        $key = array_search($building, $this->buildings, true);
+        if ($key === false) {
+            throw new \Exception('Building not found');
+        }
+
+        unset($this->buildings[$key]);
+    }
+
+    public function getBuildingCount(string $type): int
+    {
+        $count = 0;
+        foreach ($this->buildings as $building) {
+            if (get_class($building) === $type) {
+                $count++;
+            }
+        }
+
+        return $count;
+    }
+
+    public function setTurn(int $turn)
+    {
+        $this->turn = $turn;
+    }
+
 }

@@ -4,15 +4,26 @@ require_once __DIR__ . '/../vendor/autoload.php';
 use Karbo\Economy\Simulation;
 
 $sim = new Simulation();
-$sim->build('house');
-$sim->build('house');
-$sim->build('farm');
-
+for ($i = 0; $i < 4; $i++) {
+    $sim->build('house');
+}
+for ($i = 0; $i < 1; $i++) {
+    $sim->build('farm');
+}
 
 $data = [];
 
-for ($i = 0; $i < 300; $i++) {
+$turns = $_GET['i'] ?? 0;
+
+for ($i = 0; $i < $turns; $i++) {
     $_GET['i'] = $i;
+    $sim->setTurn($i);
+    $sim->tick();
+}
+
+for ($i = $turns; $i < $turns+100; $i++) {
+    $_GET['i'] = $i;
+    $sim->setTurn($i);
 
     $sim->tick();
     $stats = $sim->getStats();
@@ -41,7 +52,20 @@ for ($i = 0; $i < 300; $i++) {
         </style>
     </head>
     <body>
-        <h1>Simulation</h1>
+        <h1>Simulation
+            <!-- button to move -20 turns as $_GET['i'] -->
+            <button onclick="window.location.href = '?i=<?php echo $turns - 20; ?>'">-20</button>
+            <!-- button to move -10 turns as $_GET['i'] -->
+            <button onclick="window.location.href = '?i=<?php echo $turns - 10; ?>'">-10</button>
+            <!-- button to move -1 turn as $_GET['i'] -->
+            <button onclick="window.location.href = '?i=<?php echo $turns - 1; ?>'">-1</button>
+            <!-- button to move +1 turn as $_GET['i'] -->
+            <button onclick="window.location.href = '?i=<?php echo $turns + 1; ?>'">+1</button>
+            <!-- button to move +10 turns as $_GET['i'] -->
+            <button onclick="window.location.href = '?i=<?php echo $turns + 10; ?>'">+10</button>
+            <!-- button to move +20 turns as $_GET['i'] -->
+            <button onclick="window.location.href = '?i=<?php echo $turns + 20; ?>'">+20</button>
+        </h1>
         <!-- table 2 rows 2 columns -->
         <div class="table">
             <div class="row">
@@ -79,15 +103,18 @@ for ($i = 0; $i < 300; $i++) {
                 </div>
             </div>
             <div class="row">
+                <div class="column">
+                    <h2>Buildings count</h2>
+                    <canvas id="buildings_type_count"></canvas>
+                </div>
+                <div class="column">
+                    <h2>X</h2>
+                </div>
+                <div class="column">
+                    <h2>X</h2>
+                </div>
             </div>
-
-
-
-
-
-
-
-
+        </div>
         <script>
             function render() {
                 new Chart(document.getElementById('buy_prices'), {
@@ -336,6 +363,47 @@ for ($i = 0; $i < 300; $i++) {
                             {
                                 label: 'Karbo\Economy\Farm',
                                 data: <?php echo json_encode(array_map(function ($row) { return $row['money']['Karbo\Economy\Farm'] ?? 0; }, $data)); ?>,
+                                backgroundColor: [
+                                    'rgba(54, 162, 235, 0.2)',
+                                ],
+                                borderColor: [
+                                    'rgba(54, 162, 235, 1)',
+                                ],
+                                borderWidth: 1
+                            },
+                        ]
+                    },
+                    options: {
+                        scales: {
+                            yAxes: [{
+                                ticks: {
+                                    beginAtZero: true
+                                }
+                            }]
+                        }
+                    }
+                });
+
+                // buildings_count
+                new Chart(document.getElementById('buildings_type_count'), {
+                    type: 'line',
+                    data: {
+                        labels: <?php echo json_encode(array_map(function ($i) { return $i + 1; }, array_keys($data))); ?>,
+                        datasets: [
+                            {
+                                label: 'Karbo\Economy\House',
+                                data: <?php echo json_encode(array_map(function ($row) { return $row['buildings_count']['house'] ?? 0; }, $data)); ?>,
+                                backgroundColor: [
+                                    'rgba(255, 99, 132, 0.2)',
+                                ],
+                                borderColor: [
+                                    'rgba(255,99,132,1)',
+                                ],
+                                borderWidth: 1
+                            },
+                            {
+                                label: 'Karbo\Economy\Farm',
+                                data: <?php echo json_encode(array_map(function ($row) { return $row['buildings_count']['farm'] ?? 0; }, $data)); ?>,
                                 backgroundColor: [
                                     'rgba(54, 162, 235, 0.2)',
                                 ],
