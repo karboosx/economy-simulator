@@ -84,26 +84,23 @@ abstract class Building
 
     public function setPrice(string $goods, float $price): void
     {
-        $this->prices[$goods] = $price;
-    }
-
-    public function setInitPrice(string $goods, float $price): void
-    {
-        if (!isset($this->prices[$goods])) {
-            $this->prices[$goods] = $price;
+        if ($price <= 0) {
+            throw new \InvalidArgumentException('Price must be greater than 0');
         }
+
+        $this->prices[$goods] = $price;
     }
 
     public function getPrice(string $goods): float
     {
         if (!isset($this->prices[$goods])) {
-            throw new \Exception('No price for ' . $goods);
+            $this->prices[$goods] = 1;
         }
 
         return $this->prices[$goods];
     }
 
-    protected function decreasePrice(string $goods, float $factor = 1): void
+    protected function decreasePrice(string $goods, float $factor = 0.1): void
     {
         $this->setPrice($goods, $this->priceCalculator->changePrice($this->getPrice($goods), -$factor));
     }
@@ -113,7 +110,7 @@ abstract class Building
         return $this->currentNeeds;
     }
 
-    protected function increasePrice(string $goods, float $factor = 1): void
+    protected function increasePrice(string $goods, float $factor = 0.1): void
     {
         $this->setPrice($goods, $this->priceCalculator->changePrice($this->getPrice($goods), $factor));
     }
@@ -135,6 +132,12 @@ abstract class Building
         }
 
         $this->inventory[$goods] += $amount;
+
+        if (isset($this->targetStorage[$goods])) {
+            if ($this->inventory[$goods] > $this->targetStorage[$goods]) {
+                $this->overstock($goods);
+            }
+        }
     }
 
     public function removeInventory(string $goods, int $amount): void
@@ -202,15 +205,15 @@ abstract class Building
 
     protected function understock(string $goods)
     {
-        //$this->decreasePrice($goods);
+        $this->decreasePrice($goods);
     }
 
     protected function overstock(string $goods)
     {
-        //$this->increasePrice($goods);
+        $this->increasePrice($goods);
     }
 
-    protected function getAmountToBuy(string $goods): int
+    protected function getAmountToBuy(string $goods, int $default = 0): int
     {
         $targetStorage = $this->getTargetStorage($goods);
         $inventoryAmount = $this->getInventoryAmount($goods);
@@ -219,8 +222,15 @@ abstract class Building
             return $targetStorage - $inventoryAmount;
         }
 
-        return 0;
+        return $default;
     }
+
+    public function terminate(): bool
+    {
+        return $this->getMoney() == 0;
+    }
+
+
     protected function getAmountToBuyThatCanAfford(string $goods): int
     {
         $targetStorage = $this->getTargetStorage($goods);
@@ -281,5 +291,22 @@ abstract class Building
         if ($this->getPrice($goods) > $price) {
             $this->setPrice($goods, $price);
         }
+    }
+
+
+    protected function getIncome(string $goods)
+    {
+        if ($this->currentNeeds->getSupply($goods) == null)
+            return 0;
+
+        return $this->currentNeeds->getSupply($goods)->getFulfilledAmount() * $this->getPrice($goods);
+    }
+
+    protected function getOutcome(string $goods)
+    {
+        if ($this->currentNeeds->getDemand($goods) == null)
+            return 0;
+
+        return $this->currentNeeds->getDemand($goods)->getFulfilledAmount() * $this->getPrice($goods);
     }
 }

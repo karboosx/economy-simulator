@@ -8,18 +8,9 @@ class House extends Building
 
     public function placeOrders(): Needs
     {
-//        $this->setMinPrice('work_force', $this->simulation->getBestSupplyPrice('food'));
-//        $this->setMinPrice('work_force', $this->simulation->getBestDemandPrice('work_force'));
-        //$this->setMaxPrice('food', $this->simulation->getBestDemandPrice('work_force'));
-
-        $this->setTargetStorage('food', $this->population * 2);
-
         $needs = new Needs();
 
-        if ($this->getAmountToBuy('food') > 0) {
-            $needs->setDemand('food', $this->getAmountToBuy('food'), $this->getPrice('food'))->searchCheapest();
-        }
-
+        $needs->setDemand('food',$this->population, $this->getPrice('food'))->searchCheapest();
         $needs->setSupply('work_force', $this->population, $this->getPrice('work_force'));
 
         $this->setInventory('work_force', $this->population);
@@ -38,6 +29,16 @@ class House extends Building
     {
         if ($this->currentNeeds == null)
             return;
+
+        if ($this->getIncome('work_force') < 0.01) {
+            $this->decreasePrice('work_force');
+        }
+
+        if ($this->getOutcome('work_force') < $this->getIncome('food')) {
+            if ($this->simulation->getDemand('food')) {
+                $this->increasePrice('food');
+            }
+        }
 
         $foodDemand = $this->currentNeeds->getDemand('food');
         $workSupply = $this->currentNeeds->getSupply('work_force');
@@ -61,80 +62,40 @@ class House extends Building
             if (!$workSupply->wasFulfilled()) {
                 $this->decreasePrice('work_force');
             } else {
-                if ($this->simulation->getDemand('work_force') > 0) {
-                    $this->increasePrice('work_force');
-                }
+                $this->increasePrice('work_force');
             }
         }
 
         if ($this->simulation->getBestDemandPrice('work_force') > $this->getPrice('work_force')) {
-            $this->increasePrice('work_force');
+            $this->setPrice('work_force', $this->simulation->getBestDemandPrice('work_force', -2));
         }
 
-
-        if ($this->starvation > 5) {
-            $this->increasePrice('food');
-            $this->decreasePrice('work_force');
-        }
-
-
-//        $potentialEarnings = $this->simulation->getBestSupplyPrice('work_force') * min($this->population, $this->simulation->getSupply('work_force'));
-//        $potentialCost = $this->simulation->getBestDemandPrice('food') * min($this->population, $this->simulation->getDemand('food'));
-//
-//        if ($potentialEarnings < $potentialCost) {
-//            $this->increasePrice('work_force');
-//        }
-//
-//        if ($this->getPrice('food') > $this->simulation->getBestSupplyPrice('food')) {
-//            $this->setPrice('food', $this->simulation->getBestSupplyPrice('food'));
-//        }
-//
-//        $bestWorkForceSalary = $this->simulation->getBestSupplyPrice('work_force');
-//
-//        if ($bestWorkForceSalary > $this->getPrice('work_force')) {
-//            $this->setPrice('work_force', $bestWorkForceSalary);
-//        }
-//
         $maxFoodPrice = $this->getMoney() / $this->population;
 
         if ($this->getPrice('food') > $maxFoodPrice && $maxFoodPrice > 0) { // todo sprawdzic czemu sie wykrzacza jak $maxFoodPrice = 0
             $this->setPrice('food', $maxFoodPrice);
         }
 
-//        if ($this->getPrice('work_force') < $this->simulation->getBestSupplyPrice('food')) {
-//            $this->setPrice('work_force', $this->simulation->getBestSupplyPrice('food'));
-//        }
-//
-//        if ($this->getPrice('food') > $this->simulation->getBestSupplyPrice('food')) {
-//            $this->setPrice('food', $this->simulation->getBestSupplyPrice('food'));
-//        }
+        $this->setMinPrice('food', 0.01);
+
+        $bestSupplyPrice = $this->simulation->getBestSupplyPrice('food');
+        if ($this->getPrice('food') > $bestSupplyPrice && $bestSupplyPrice > 0) { // todo sprawdzic czemu sie wykrzacza jak $maxFoodPrice = 0
+            $this->setPrice('food', $bestSupplyPrice);
+        }
+
+        if ($this->getPrice('work_force') < $this->simulation->getBestDemandPrice('work_force')) {
+            $this->increasePrice('work_force');
+        }
 
 
-        // starving
-//        if ($this->getInventoryAmount('food') < $this->population) {
-//            $this->setPrice('food', $this->simulation->getBestSupplyPrice('food'));
-//        }
 
-        // set max price for food based on current money and work force price
-//        $maxFoodPrice = $this->simulation->getBestSupplyPrice('work_force') / min($this->population, $this->simulation->getSupply('work_force'));
-//
-//        if ($this->getPrice('food') > $maxFoodPrice) {
-//            $this->setPrice('food', $maxFoodPrice);
-//        }
-
-        // set min price for work force based on current money and food price
-//
-//        $minWorkForcePrice = $this->getPrice('food') / $this->population;
-//
-//        if ($this->getPrice('work_force') < $minWorkForcePrice) {
-//            $this->setPrice('work_force', $minWorkForcePrice);
-//        }
-
-//
-//        $minWorkForcePrice = $this->getPrice('food') / $this->population * 0.5;
-//
-//        if ($this->getPrice('work_force') * $this->population < $minWorkForcePrice) {
-//            $this->setPrice('work_force', $minWorkForcePrice);
-//        }
+        if ($this->starvation >= 2) {
+            $this->increasePrice('food');
+            $this->decreasePrice('work_force');
+        } else {
+            $this->setMinPrice('work_force', $this->getPrice('food'));
+            $this->setMaxPrice('food', $this->getMoney() / $this->population / 3);
+            $this->setMaxPrice('food', $this->getPrice('work_force') / $this->population);
+        }
     }
 }

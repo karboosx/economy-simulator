@@ -4,18 +4,14 @@ namespace Karbo\Economy;
 
 class Farm extends Building
 {
-    private $productionRate = 2;
+    private $productionRate = 4;
 
     public function placeOrders(): Needs
     {
         $needs = new Needs();
-//        $this->setMinPrice('food', $this->simulation->getBestSupplyPrice('work_force') / $this->productionRate);
-//        $this->setMaxPrice('work_force', $this->simulation->getBestDemandPrice('food') * $this->productionRate);
 
-        //$this->setMinPrice('food', $this->simulation->getBestDemandPrice('food'));
-
-        $this->setTargetStorage('food', 10);
-        $this->setTargetStorage('work_force', 3);
+        $this->setTargetStorage('food', $this->simulation->getBuildingCount(House::class) * 2);
+        $this->setTargetStorage('work_force', $this->simulation->getBuildingCount(House::class)*2);
 
         if (!$this->isInventoryFull('food') && $this->getAmountToBuy('work_force') > 0) {
             $needs->setDemand('work_force', $this->getAmountToBuy('work_force'), $this->getPrice('work_force'))->searchCheapest();
@@ -38,6 +34,16 @@ class Farm extends Building
         if ($this->currentNeeds == null)
             return;
 
+        if ($this->getIncome('food') < 0.01) {
+            $this->decreasePrice('food');
+        }
+
+        if ($this->getOutcome('work_force') < $this->getIncome('food')) {
+            if ($this->simulation->getDemand('food')) {
+                $this->increasePrice('food');
+            }
+        }
+
         if ($this->currentNeeds->getDemand('work_force') !== null) {
             if (!$this->currentNeeds->getDemand('work_force')->wasFulfilled()) {
 
@@ -45,7 +51,7 @@ class Farm extends Building
                     $this->increasePrice('work_force');
                 }
             } else {
-                $this->decreasePrice('work_force');
+                $this->decreasePrice('work_force', 0.1);
             }
         }
 
@@ -57,66 +63,46 @@ class Farm extends Building
                 $this->stagnation = 0;
             }
             if (!$foodSupply->wasFulfilled()) {
-
-                $sales = $this->getSales('food');
-                $cost = $this->getCost('work_force');
-
-                if ($sales < $cost) {
-                    $this->increasePrice('food');
-                }
-
-                $this->decreasePrice('food');
-
-
-            } else {
                 if ($this->simulation->getDemand('food') > 0) {
-                    $this->increasePrice('food');
+                    $this->decreasePrice('food');
                 }
+            } else {
+                $this->increasePrice('food');
             }
-        }
-
-        if ($this->getPrice('work_force') > $this->getMoney() / $this->getAmountToBuy('work_force')) {
-            $this->setPrice('work_force', $this->getMoney() / $this->getAmountToBuy('work_force'));
-        }
-
-        if ($this->isInventoryFull('food')) {
-            $this->decreasePrice('food');
+        } else {
+            $this->stagnation++;
         }
 
         if ($this->simulation->getBestDemandPrice('food') > $this->getPrice('food')) {
-            $this->increasePrice('food');
+            $this->setPrice('food', $this->simulation->getBestDemandPrice('food', -1));
         }
 
         if ($this->stagnation > 5) {
+            $this->removeInventory('food', $this->getInventoryAmount('food') / 3);
             $this->decreasePrice('food');
             $this->increasePrice('work_force');
+        } else {
+            $this->setMinPrice('food', $this->getPrice('work_force') / $this->productionRate);
+            $this->setMaxPrice('work_force', $this->getPrice('food') * $this->productionRate);
+            $this->setMaxPrice('food', $this->getMoney() / $this->productionRate);
         }
 
-//
-//        $maxWorkForcePrice = $this->getPrice('food') / (1+$this->getInventoryAmount('food'));
-//        if ($this->getPrice('work_force') > $maxWorkForcePrice) {
-//            $this->setPrice('work_force', $maxWorkForcePrice);
-//        }
+        $this->setMaxPrice('work_force', $this->getMoney() / 2 / 3);
 
-//
-//        if ($this->getPrice('work_force') > $this->getPrice('food') * $this->productionRate) {
-//            $this->setPrice('work_force', $this->getPrice('food') * $this->productionRate);
-//        }
     }
 
-    private function getSales(string $goods)
+    // terminate method: remove building only if there is no food in inventory
+    public function terminate(): bool
     {
-        if ($this->currentNeeds->getSupply($goods) == null)
-            return 0;
+        if ($this->getInventoryAmount('food') > 0) {
+            $this->decreasePrice('food');
+        }
+        $test = $this->getMoney() === 0 && $this->getInventoryAmount('food') == 0;
 
-        return $this->currentNeeds->getSupply($goods)->getFulfilledAmount() * $this->getPrice($goods);
-    }
+        if ($test) {
+            return true;
+        }
 
-    private function getCost(string $goods)
-    {
-        if ($this->currentNeeds->getDemand($goods) == null)
-            return 0;
-
-        return $this->currentNeeds->getDemand($goods)->getFulfilledAmount() * $this->getPrice($goods);
+        return false;
     }
 }
